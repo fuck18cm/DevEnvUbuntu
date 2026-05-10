@@ -2,12 +2,15 @@
 
 一键安装 Ubuntu 22.04+（含 Windows 11 WSL2）开发环境：
 
-- **JDK 8（默认）+ JDK 17**（SDKMAN 管理，`sdk use java 17.0.13-tem` 切换）
-- **Node.js 20 LTS**（nvm，npm 走 npmmirror）
-- **Python 3.12**（pyenv，pip 走清华）
-- **Git**、**Maven 3.9.x**（settings.xml 走阿里云）
+- **JDK 8（默认）+ JDK 17**（SDKMAN 管理，`sdk use java 17.x.x-tem` 切换）
+- **Node.js 20 LTS**（nvm）
+- **Python 3.12**（pyenv）
+- **Git**、**Maven 3.9.x**
 - **Claude Code CLI** + **clautel**（npm 全局）
 - WSL2 下"始终在线"四件套：Windows 开机自启 WSL、不空闲超时、clautel 崩溃自拉起、网络保活记录
+
+> **默认走官方上游**（api.sdkman.io / nodejs.org / pypi.org / Maven Central / GitHub）。
+> 国内不能科学上网的用户加 `--mirror` 启用 USTC / bfsu / npmmirror / 清华 / 阿里云 / gitee 加速。
 
 ## 一键安装（Linux/WSL 端）
 
@@ -21,7 +24,10 @@ bash install.sh
 
 | 参数 | 说明 |
 |---|---|
-| `--no-mirror` | 关闭国内镜像（apt/SDKMAN/npm/pip/Maven 走官方） |
+| `--mirror` | 启用国内镜像（默认关）：apt/SDKMAN/npm/pip/Maven/nvm/pyenv 全套加速 |
+| `--no-mirror` | 显式禁用镜像（同默认；并清理之前残留的镜像配置） |
+| `--status` | 只打印当前各工具状态表，不执行安装 |
+| `-y`, `--yes` | 跳过开始前的 [Y/n] 确认 |
 | `--skip-keepalive` | 跳过 systemd user services 部署（CI 场景） |
 | `--only NAME` | 只跑指定模块；可多次传 |
 | `--skip NAME` | 跳过指定模块；可多次传 |

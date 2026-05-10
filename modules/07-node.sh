@@ -18,16 +18,27 @@ as_login_shell "
   npm -v
 "
 
-# npm registry
-if [[ "${DEVENV_USE_MIRROR:-1}" == "1" ]]; then
+# npm registry: --mirror 用 npmmirror,否则恢复官方
+if [[ "${DEVENV_USE_MIRROR:-0}" == "1" ]]; then
   as_login_shell '
     set -e
     current=$(npm config get registry)
     if [[ "$current" != *npmmirror.com* ]]; then
       npm config set registry https://registry.npmmirror.com
-      echo "npm registry 已切换"
+      echo "npm registry 已切换到 npmmirror"
     else
       echo "npm registry 已是 npmmirror"
+    fi
+  '
+else
+  as_login_shell '
+    set -e
+    current=$(npm config get registry)
+    if [[ "$current" == *npmmirror.com* || "$current" == *taobao* ]]; then
+      npm config set registry https://registry.npmjs.org/
+      echo "npm registry 已恢复到官方上游"
+    else
+      echo "npm registry 已在官方上游或自定义"
     fi
   '
 fi

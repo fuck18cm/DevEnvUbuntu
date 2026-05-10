@@ -9,18 +9,18 @@ NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
 if [[ -s "$NVM_DIR/nvm.sh" ]]; then
   log_info "nvm 已安装于 $NVM_DIR"
 else
-  log_info "安装 nvm（gitee 镜像）"
-  if [[ "${DEVENV_USE_MIRROR:-1}" == "1" ]]; then
-    export NVM_SOURCE='https://gitee.com/mirrors/nvm.git'
-    git clone --depth=1 -b v0.40.1 "$NVM_SOURCE" "$NVM_DIR"
+  if [[ "${DEVENV_USE_MIRROR:-0}" == "1" ]]; then
+    log_info "安装 nvm(gitee 镜像)"
+    git clone --depth=1 -b v0.40.1 https://gitee.com/mirrors/nvm.git "$NVM_DIR"
   else
+    log_info "安装 nvm(github 上游)"
     git clone --depth=1 -b v0.40.1 https://github.com/nvm-sh/nvm.git "$NVM_DIR"
   fi
 fi
 
-# 注入到 ~/.bashrc，包含 Node 二进制镜像变量
+# Node 二进制源:--mirror 时走 npmmirror,否则走 nvm 默认上游
 NODE_MIRROR_LINE=""
-if [[ "${DEVENV_USE_MIRROR:-1}" == "1" ]]; then
+if [[ "${DEVENV_USE_MIRROR:-0}" == "1" ]]; then
   NODE_MIRROR_LINE='export NVM_NODEJS_ORG_MIRROR="https://npmmirror.com/mirrors/node/"'
 fi
 

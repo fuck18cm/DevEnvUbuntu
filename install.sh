@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # DevEnvUbuntu 一键安装入口
-# 用法: bash install.sh [--only NAME ...] [--skip NAME ...] [--no-mirror]
+# 用法: bash install.sh [--only NAME ...] [--skip NAME ...] [--mirror]
 #                      [--skip-keepalive] [--git-user NAME] [--git-email ADDR]
 #                      [--status] [--yes]
+# 默认走官方上游(api.sdkman.io / nodejs.org / pypi.org / 等)。
+# 想用国内镜像加速请显式加 --mirror。
 set -Eeuo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -14,7 +16,7 @@ source modules/versions.env
 
 # CLI 参数
 declare -a ONLY=() SKIP=()
-export DEVENV_USE_MIRROR=1
+export DEVENV_USE_MIRROR=0          # 默认: 不用镜像,走上游
 export DEVENV_SKIP_KEEPALIVE=0
 export DEVENV_GIT_USER=""
 export DEVENV_GIT_EMAIL=""
@@ -25,14 +27,15 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --only) ONLY+=("$2"); shift 2 ;;
     --skip) SKIP+=("$2"); shift 2 ;;
-    --no-mirror) DEVENV_USE_MIRROR=0; shift ;;
+    --mirror) DEVENV_USE_MIRROR=1; shift ;;
+    --no-mirror) DEVENV_USE_MIRROR=0; shift ;;     # 兼容旧用法
     --skip-keepalive) DEVENV_SKIP_KEEPALIVE=1; shift ;;
     --git-user) DEVENV_GIT_USER="$2"; shift 2 ;;
     --git-email) DEVENV_GIT_EMAIL="$2"; shift 2 ;;
     --status) STATUS_ONLY=1; shift ;;
     -y|--yes) ASSUME_YES=1; shift ;;
     -h|--help)
-      sed -n '2,6p' "$0"; exit 0 ;;
+      sed -n '2,8p' "$0"; exit 0 ;;
     *) log_error "未知参数: $1"; exit 2 ;;
   esac
 done
@@ -216,9 +219,9 @@ echo "=== 本次将执行的模块 ==="
 list_planned_modules
 echo
 echo "提示:"
+echo "  - 默认走官方上游;如需国内镜像加速:  bash install.sh --mirror"
 echo "  - 只装某几项:    bash install.sh --only 04-jdk --only 05-maven"
 echo "  - 跳过某几项:    bash install.sh --skip 12-keepalive"
-echo "  - 不用国内镜像:  bash install.sh --no-mirror"
 echo "  - 只看不装:      bash install.sh --status"
 echo
 

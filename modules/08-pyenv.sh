@@ -15,7 +15,7 @@ idempotent_apt_install \
 if [[ -d "$PYENV_ROOT/.git" ]]; then
   log_info "pyenv 已安装于 $PYENV_ROOT"
 else
-  if [[ "${DEVENV_USE_MIRROR:-1}" == "1" ]]; then
+  if [[ "${DEVENV_USE_MIRROR:-0}" == "1" ]]; then
     git clone --depth=1 https://gitee.com/mirrors/pyenv "$PYENV_ROOT"
   else
     git clone --depth=1 https://github.com/pyenv/pyenv.git "$PYENV_ROOT"

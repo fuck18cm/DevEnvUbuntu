@@ -47,8 +47,8 @@ as_login_shell "
   mvn -v | head -1
 "
 
-# 写阿里云 mirror 到 ~/.m2/settings.xml
-if [[ "${DEVENV_USE_MIRROR:-1}" == "1" ]]; then
+# settings.xml: --mirror 时写阿里云,否则若旧文件含 aliyun 则清成上游默认
+if [[ "${DEVENV_USE_MIRROR:-0}" == "1" ]]; then
   mkdir -p "$HOME/.m2"
   if [[ ! -f "$HOME/.m2/settings.xml" ]] || ! grep -q 'aliyun' "$HOME/.m2/settings.xml" 2>/dev/null; then
     log_info "写入阿里云 Maven mirror"
@@ -67,6 +67,11 @@ if [[ "${DEVENV_USE_MIRROR:-1}" == "1" ]]; then
 EOF
   else
     log_info "Maven settings.xml 已含 aliyun mirror"
+  fi
+else
+  if [[ -f "$HOME/.m2/settings.xml" ]] && grep -q 'aliyun' "$HOME/.m2/settings.xml" 2>/dev/null; then
+    log_info "移除 ~/.m2/settings.xml 中的 aliyun mirror,走 Maven Central 上游"
+    rm -f "$HOME/.m2/settings.xml"
   fi
 fi
 
