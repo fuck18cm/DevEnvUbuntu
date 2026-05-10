@@ -34,9 +34,12 @@ has_systemd() {
   [[ -d /run/systemd/system ]]
 }
 
-# as_login_shell <command...>: 用 `bash -lc` 跑，让 nvm/sdk 等 init 脚本生效。
+# as_login_shell <command...>: 在登录+交互式 bash 中跑命令,让 nvm/sdk/pyenv 的
+# init 块在 ~/.bashrc 中真正生效。注意必须用 -i,因为 Ubuntu 默认 ~/.bashrc 顶部
+# 有 `case $- in *i*) ;; *) return;; esac`,非交互 shell 会在这里直接 return,
+# 导致写在 bashrc 末尾的 init 块被跳过。
 as_login_shell() {
-  bash -lc "$*"
+  bash -ilc "$*"
 }
 
 # append_once <file> <marker> <content>
