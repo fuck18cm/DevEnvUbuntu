@@ -192,7 +192,8 @@ assert "append_once 替换旧块" '[[ $(grep -c "export FOO=changed" "$tmp") == 
 assert "append_once 删除旧 FOO=bar" '! grep -q "FOO=bar" "$tmp"'
 
 # --- is_wsl 应不报错 ---
-is_wsl; rc=$?
+# 注意: set -e 下不能写 `is_wsl; rc=$?`,因为 is_wsl 返回 1 会先终止脚本。
+rc=0; is_wsl || rc=$?
 assert "is_wsl 返回 0 或 1" '[[ "$rc" == "0" || "$rc" == "1" ]]'
 
 echo
