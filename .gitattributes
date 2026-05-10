@@ -1,0 +1,14 @@
+# Force LF for shell scripts and other Unix-targeted assets so that
+# Windows checkouts don't break execution inside WSL/Docker.
+*.sh text eol=lf
+*.bash text eol=lf
+modules/versions.env text eol=lf
+systemd/*.service text eol=lf
+systemd/*.timer text eol=lf
+
+# Windows-only assets keep CRLF
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Default: let git decide
+* text=auto
