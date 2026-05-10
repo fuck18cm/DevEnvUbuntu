@@ -56,7 +56,7 @@ EOF
 as_login_shell 'sdk version' || { log_error "SDKMAN 安装失败"; exit 1; }
 
 # 进一步验证: 确认能从当前 candidates API 拉到 java 列表(若不行,提示用户切换源)
-if ! as_login_shell 'sdk list java 2>/dev/null | grep -q "Available Java Versions"'; then
+if ! as_login_shell 'sdk list java 2>&1 | grep -q "Available Java Versions"'; then
   log_warn "可以拿到 'sdk version' 但 'sdk list java' 输出异常。"
   if [[ "${DEVENV_USE_MIRROR:-1}" == "1" ]]; then
     log_warn "可能是 bfsu 镜像不可达;如果你能科学上网,改用上游重试:"

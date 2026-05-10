@@ -10,7 +10,7 @@ DEBUG_DIR="$HOME/.local/state/devenv"
 mkdir -p "$DEBUG_DIR"
 
 # 一次性抓 sdk list maven,后续从这块文本里 grep
-SDK_MVN_LIST="$(as_login_shell 'sdk list maven 2>/dev/null' || true)"
+SDK_MVN_LIST="$(as_login_shell 'sdk list maven 2>&1' || true)"
 if [[ -z "$SDK_MVN_LIST" ]]; then
   log_error "sdk list maven 输出为空。"
   log_error "请手动跑一次确认: bash -ilc 'sdk list maven | head -20'"
@@ -50,7 +50,7 @@ log_info "将安装 Maven = ${MVN_RESOLVED}"
 
 as_login_shell "
   set -e
-  if ! sdk list maven 2>/dev/null | grep -qE 'installed.*${MVN_RESOLVED}'; then
+  if ! sdk list maven 2>&1 | grep -qE 'installed.*${MVN_RESOLVED}'; then
     sdk install maven ${MVN_RESOLVED} <<<y
   else
     echo 'Maven ${MVN_RESOLVED} 已安装'
