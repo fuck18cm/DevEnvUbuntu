@@ -3,8 +3,6 @@
 *.sh text eol=lf
 *.bash text eol=lf
 modules/versions.env text eol=lf
-systemd/*.service text eol=lf
-systemd/*.timer text eol=lf
 
 # Windows-only assets keep CRLF
 *.bat text eol=crlf
