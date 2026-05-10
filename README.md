@@ -46,7 +46,21 @@ bash install.sh
 这一步会：
 
 - 写入 `%USERPROFILE%\.wslconfig`（防止 WSL 空闲超时关闭）
-- 注册 Windows 任务计划 `DevEnvUbuntu-WSL-Keepalive`，登录时跑 `wsl ... sleep infinity` 维持 WSL 在线
+- 在 `%LOCALAPPDATA%\DevEnvUbuntu\` 生成 `wsl-heartbeat.vbs`（按本机 distro/user 渲染）
+- 注册 Windows 任务计划 `DevEnvUbuntu-WSL-Keepalive`，**两个 trigger**：
+  - `AtLogOn` —— 用户登录时跑一次（冷启动 WSL）
+  - 每 5 分钟一次心跳 —— 跑 wscript 调用 VBS，VBS 探 clautel.service 状态
+- 心跳记录到 `%LOCALAPPDATA%\DevEnvUbuntu\heartbeat.log`（>1MB 自动轮转）
+
+### 心跳行为
+
+| 探到 | 动作 |
+|---|---|
+| `clautel.service active` | 写一行 `[OK]` 到日志，退出 |
+| `clautel.service activating` | 写 `[INFO]`，退出（systemd 重启窗口期，不打扰） |
+| 其他（inactive / failed / WSL 没起） | 写 `[WARN]` 详情，触发 `wsl ... systemctl --user start clautel.service`，再写一行 `[INFO] boot trigger fired` |
+
+任务计划 `MultipleInstances=IgnoreNew` 保证两个 trigger 撞上时只跑一份；VBS 内 wscript 进程数检查作兜底。
 
 ## 验证
 
@@ -74,11 +88,21 @@ bash tests/smoke.sh
 
 ## 卸载/清理
 
-- SDKMAN：`rm -rf ~/.sdkman` 并清掉 `~/.bashrc` 中 `# >>> DevEnvUbuntu SDKMAN >>>` 块
-- nvm / pyenv 同理：`rm -rf ~/.nvm ~/.pyenv` + 清块
-- npm 全局：`npm uninstall -g @anthropic-ai/claude-code clautel`
-- systemd 服务：`systemctl --user disable --now clautel.service net-keepalive.timer && rm ~/.config/systemd/user/{clautel,net-keepalive}.{service,timer}`
-- Windows 任务：`Unregister-ScheduledTask -TaskName DevEnvUbuntu-WSL-Keepalive -Confirm:$false`
+```bash
+# Linux 侧
+clautel uninstall-service                # 卸 systemd unit
+sudo loginctl disable-linger $USER       # 取消 lingering(可选)
+rm -rf ~/.sdkman ~/.nvm ~/.pyenv         # 卸 SDKMAN/nvm/pyenv 本体
+sed -i '/# >>> DevEnvUbuntu /,/# <<< DevEnvUbuntu /d' ~/.bashrc   # 清 bashrc 注入块
+npm uninstall -g @anthropic-ai/claude-code clautel
+```
+
+```powershell
+# Windows 侧
+Unregister-ScheduledTask -TaskName 'DevEnvUbuntu-WSL-Keepalive' -Confirm:$false
+Remove-Item "$env:LOCALAPPDATA\DevEnvUbuntu" -Recurse -Force
+Remove-Item "$env:USERPROFILE\.wslconfig" -Force      # 如果只服务此项目
+```
 
 ## 常见问题
 
