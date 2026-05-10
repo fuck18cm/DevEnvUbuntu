@@ -6,11 +6,14 @@ source "$HERE/lib/common.sh"
 # shellcheck disable=SC1091
 source "$HERE/modules/versions.env"
 
+DEBUG_DIR="$HOME/.local/state/devenv"
+mkdir -p "$DEBUG_DIR"
+
 # 一次性抓 sdk list maven,后续从这块文本里 grep
 SDK_MVN_LIST="$(as_login_shell 'sdk list maven 2>/dev/null' || true)"
 if [[ -z "$SDK_MVN_LIST" ]]; then
-  log_error "sdk list maven 输出为空。可能镜像不可达,或 SDKMAN 未正确加载。"
-  log_error "可临时改用上游源重试: bash install.sh --no-mirror --only 03-sdkman --only 05-maven"
+  log_error "sdk list maven 输出为空。"
+  log_error "请手动跑一次确认: bash -ilc 'sdk list maven | head -20'"
   exit 1
 fi
 
@@ -23,11 +26,19 @@ resolve_maven_version() {
   fi
   local latest=""
   latest="$(printf '%s\n' "$SDK_MVN_LIST" \
+    | grep -oE '(^|[^0-9.a-zA-Z])3\.[0-9]+\.[0-9]+' \
     | grep -oE '3\.[0-9]+\.[0-9]+' \
     | sort -uV \
     | tail -1 || true)"
   if [[ -z "$latest" ]]; then
-    log_error "镜像 candidates 既没有 ${pin},也找不到任何 3.x.x Maven 版本。"
+    local dump="$DEBUG_DIR/sdk-list-maven-$(date +%Y%m%d-%H%M%S).txt"
+    printf '%s\n' "$SDK_MVN_LIST" > "$dump"
+    log_error "找不到任何 3.x.x Maven 版本。"
+    log_error "已把 sdk list maven 完整输出存到: $dump"
+    log_error "请把它前 30 行贴给我;或手动:"
+    log_error "  bash -ilc 'sdk list maven | head -20'"
+    log_error "  bash -ilc 'sdk install maven <版本号>'"
+    log_error "然后在 modules/versions.env 里把 MAVEN_VERSION 改成你装的那个再重跑。"
     return 1
   fi
   log_warn "MAVEN_VERSION=${pin} 在 candidates 里不可用,降级到最新可用: ${latest}"
