@@ -150,7 +150,14 @@ probeCmd = "wsl.exe -d " & DISTRO & " -u " & WSL_USER & _
 ' Exec 能拿到 ExitCode 和 stdout; cmd.exe 包一层让 stderr 也走管道
 Set probeExec = sh.Exec("cmd.exe /c """ & probeCmd & " 2>&1""")
 Do While probeExec.Status = 0 : WScript.Sleep 100 : Loop
-statusOutput = Trim(probeExec.StdOut.ReadAll())
+' VBS 的 Trim() 只剥空格,不剥换行!  systemctl is-active 输出是 "active\n",
+' 直接 Trim 之后 statusOutput = "active" & Chr(10),三态判断永远落 Else 分支
+' → 误报 WARN.  显式去 CR/LF 再 Trim.
+statusOutput = probeExec.StdOut.ReadAll()
+statusOutput = Replace(statusOutput, vbCrLf, "")
+statusOutput = Replace(statusOutput, vbLf, "")
+statusOutput = Replace(statusOutput, vbCr, "")
+statusOutput = Trim(statusOutput)
 exitCode = probeExec.ExitCode
 
 ' --- (c) 三态分流 ----------------------------------------------------------
