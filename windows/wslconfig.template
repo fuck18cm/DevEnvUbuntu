@@ -1,0 +1,5 @@
+# 由 DevEnvUbuntu setup-keepalive.ps1 自动写入 %USERPROFILE%\.wslconfig
+# 如需手动修改，请保留 [wsl2] 段
+[wsl2]
+vmIdleTimeout=2147483647
+guiApplications=true
