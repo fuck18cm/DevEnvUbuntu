@@ -228,12 +228,10 @@ End If
     $_.CimClass.CimClassName -eq 'MSFT_TaskBootTrigger'
   }
   if (-not $bootTrigger) {
-    Write-Error "[ASSERT] 任务注册成功了, 但没找到 AtStartup (MSFT_TaskBootTrigger). 检查 setup-keepalive.ps1 中 trigger 写法."
-    exit 1
+    throw "[ASSERT] 任务注册成功了, 但没找到 AtStartup (MSFT_TaskBootTrigger). 检查 setup-keepalive.ps1 中 trigger 写法."
   }
   if ($registered.Principal.LogonType -ne 'S4U') {
-    Write-Error "[ASSERT] 任务 principal LogonType = '$($registered.Principal.LogonType)', 期望 S4U. 检查 New-ScheduledTaskPrincipal 参数."
-    exit 1
+    throw "[ASSERT] 任务 principal LogonType = '$($registered.Principal.LogonType)', 期望 S4U. 检查 New-ScheduledTaskPrincipal 参数."
   }
   Write-Host "[OK] 配置断言通过: AtStartup trigger + S4U principal"
 
