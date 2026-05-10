@@ -53,6 +53,25 @@ fi
 if is_wsl; then
   if [[ -f "$HOME/.local/state/devenv/windows-keepalive-installed" ]]; then
     row OK 'wsl-keepalive 任务' '已注册(标记文件存在)'
+
+    # 进一步: 读 Windows 侧 heartbeat.log 看最近一次状态
+    WIN_USER=$(cmd.exe /c 'echo %USERNAME%' 2>/dev/null | tr -d '\r\n ')
+    WIN_LOG="/mnt/c/Users/${WIN_USER}/AppData/Local/DevEnvUbuntu/heartbeat.log"
+    if [[ -f "$WIN_LOG" ]]; then
+      last_line=$(tail -50 "$WIN_LOG" 2>/dev/null | grep -E '\[(OK|INFO|WARN)\]' | tail -1 || true)
+      if [[ "$last_line" == *"[OK]"* ]]; then
+        row OK 'wsl-keepalive 心跳' "${last_line:0:40}"
+      elif [[ "$last_line" == *"[INFO]"* ]]; then
+        row OK 'wsl-keepalive 心跳' "${last_line:0:40}"
+      elif [[ "$last_line" == *"[WARN]"* ]]; then
+        printf '[%s]  %-22s %s\n' 'WARN' 'wsl-keepalive 心跳' "${last_line:0:60}"
+        FAIL=$((FAIL+1))
+      else
+        printf '[%s]  %-22s %s\n' 'TODO' 'wsl-keepalive 心跳' '日志还没行,等 5 分钟再看'
+      fi
+    else
+      printf '[%s]  %-22s %s\n' 'TODO' 'wsl-keepalive 心跳' '日志文件未生成'
+    fi
   else
     # Windows 端待办,不是 Linux 侧能修的,标 TODO 不计入 FAIL
     printf '[%s]  %-22s %s\n' 'TODO' 'wsl-keepalive 任务' '请到 Windows 端双击 windows\run-as-admin.bat'
