@@ -141,24 +141,34 @@ If dupCount > 1 Then
   WScript.Quit 0
 End If
 
-' --- (b) 探活: wsl.exe -e systemctl --user is-active clautel.service -------
+' --- (b) 探活: 隐藏窗口运行 wsl.exe 并把 stdout 重定向到临时文件 ----------
+' WshShell.Exec 强制 SW_SHOWNORMAL,会闪黑窗;改用 Run(cmd, 0, True),
+' 0=vbHide,True=同步等待,返回 wsl.exe 的 exit code.
 Dim sh : Set sh = CreateObject("WScript.Shell")
-Dim probeCmd, probeExec, statusOutput, exitCode
-probeCmd = "wsl.exe -d " & DISTRO & " -u " & WSL_USER & _
+Dim tempFile, coreCmd, probeCmd, exitCode, statusOutput
+tempFile = sh.ExpandEnvironmentStrings("%LOCALAPPDATA%") & _
+           "\DevEnvUbuntu\probe.tmp"
+coreCmd  = "wsl.exe -d " & DISTRO & " -u " & WSL_USER & _
            " -e systemctl --user is-active clautel.service"
+' cmd.exe /c "..." 双双引号包整串,内层引号保护 tempFile 路径里可能的空格
+probeCmd = "cmd.exe /c """ & coreCmd & " > """ & tempFile & """ 2>&1"""
+exitCode = sh.Run(probeCmd, 0, True)
 
-' Exec 能拿到 ExitCode 和 stdout; cmd.exe 包一层让 stderr 也走管道
-Set probeExec = sh.Exec("cmd.exe /c """ & probeCmd & " 2>&1""")
-Do While probeExec.Status = 0 : WScript.Sleep 100 : Loop
-' VBS 的 Trim() 只剥空格,不剥换行!  systemctl is-active 输出是 "active\n",
-' 直接 Trim 之后 statusOutput = "active" & Chr(10),三态判断永远落 Else 分支
-' → 误报 WARN.  显式去 CR/LF 再 Trim.
-statusOutput = probeExec.StdOut.ReadAll()
+' 读临时文件 (不存在时 statusOutput 留空,自然落 WARN 分支触发 boot)
+Dim fso, f2
+Set fso = CreateObject("Scripting.FileSystemObject")
+statusOutput = ""
+If fso.FileExists(tempFile) Then
+  Set f2 = fso.OpenTextFile(tempFile, 1)   ' 1=ForReading
+  If Not f2.AtEndOfStream Then statusOutput = f2.ReadAll()
+  f2.Close
+  fso.DeleteFile tempFile, True
+End If
+' VBS 的 Trim() 不剥换行;systemctl 输出是 "active\n",必须先去 CR/LF
 statusOutput = Replace(statusOutput, vbCrLf, "")
-statusOutput = Replace(statusOutput, vbLf, "")
-statusOutput = Replace(statusOutput, vbCr, "")
+statusOutput = Replace(statusOutput, vbLf,   "")
+statusOutput = Replace(statusOutput, vbCr,   "")
 statusOutput = Trim(statusOutput)
-exitCode = probeExec.ExitCode
 
 ' --- (c) 三态分流 ----------------------------------------------------------
 If exitCode = 0 And statusOutput = "active" Then
