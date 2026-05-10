@@ -48,7 +48,7 @@ bash install.sh
 - 写入 `%USERPROFILE%\.wslconfig`（防止 WSL 空闲超时关闭）
 - 在 `%LOCALAPPDATA%\DevEnvUbuntu\` 生成 `wsl-heartbeat.vbs`（按本机 distro/user 渲染）
 - 注册 Windows 任务计划 `DevEnvUbuntu-WSL-Keepalive`，**两个 trigger**：
-  - `AtLogOn` —— 用户登录时跑一次（冷启动 WSL）
+  - `AtStartup` —— Windows 启动时跑一次（principal 用 S4U logon type，不依赖你登录、不存密码，锁屏期间 clautel 就已经在跑）
   - 每 5 分钟一次心跳 —— 跑 wscript 调用 VBS，VBS 探 clautel.service 状态
 - 心跳记录到 `%LOCALAPPDATA%\DevEnvUbuntu\heartbeat.log`（>1MB 自动轮转）
 
