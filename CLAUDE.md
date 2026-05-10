@@ -92,7 +92,7 @@ JDK/Maven 解析逻辑:先精确匹配 `versions.env` 中的 pin,匹配不到就
 2. **`loginctl enable-linger`** — 让 systemd user manager 在你未登录时也跑,clautel 才能在没人 wsl.exe 连着的间隙也活着。
 3. **`clautel install-service`** 生成 `~/.config/systemd/user/clautel.service` 并 enable + start。这份 unit **由 clautel 自己维护**,我们仓库不再保留手写模板;它的 ExecStart 直接调 node + daemon.js,Environment=PATH 烘焙进去,Restart=always。
 4. **Windows 任务计划** `DevEnvUbuntu-WSL-Keepalive` (`setup-keepalive.ps1` 注册) — **一个任务,两个 trigger**:
-   - `AtLogOn` 用户登录时跑一次(冷启动 WSL)
+   - `AtStartup` Windows 启动时跑一次 (principal: S4U logon type, 不依赖用户登录、不存密码)
    - 每 5 分钟一次心跳
    - 两个 trigger 都跑同一个 `%LOCALAPPDATA%\DevEnvUbuntu\wsl-heartbeat.vbs`(运行时生成,distro/user 烘焙入 VBS 常量)
    - VBS 探 `systemctl --user is-active clautel.service`,三态分流:`active` 写 `[OK]`、`activating` 写 `[INFO]`、其他 写 `[WARN]` 并触发 `wsl ... systemctl --user start clautel.service`
