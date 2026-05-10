@@ -1,4 +1,4 @@
-# 注册任务计划：登录时启动 wsl 并跑 sleep infinity
+﻿# 注册任务计划：登录时启动 wsl 并跑 sleep infinity
 # 同时把 wslconfig.template 写入 $env:USERPROFILE\.wslconfig
 [CmdletBinding()]
 param(
