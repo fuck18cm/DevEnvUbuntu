@@ -1355,11 +1355,12 @@ Write-Host "如需停止保活，删除任务计划 '$taskName' 即可。"
 
 ```bat
 @echo off
+chcp 65001 >nul
 REM DevEnvUbuntu - 一键申请管理员权限并执行 setup-keepalive.ps1
 fltmc >nul 2>&1
 if %errorlevel% neq 0 (
   echo 申请管理员权限...
-  powershell -Command "Start-Process -FilePath '%~dpnx0' -ArgumentList '%*' -Verb RunAs"
+  powershell -Command "Start-Process -FilePath '%~dpnx0' -Verb RunAs"
   exit /b
 )
 echo 已是管理员权限,执行 setup-keepalive.ps1...
@@ -1368,6 +1369,8 @@ echo.
 echo === 按任意键关闭 ===
 pause >nul
 ```
+
+> 注:`Start-Process` 不能传空 `-ArgumentList`,所以这里去掉了 `-ArgumentList '%*'`(用户双击时 `%*` 为空,会触发 PS 参数校验失败)。`chcp 65001` 让 cmd 用 UTF-8 输出中文。`setup-keepalive.ps1` 必须以 **UTF-8 with BOM** 保存,否则 Windows PowerShell 5.1 会按 ANSI 解读中文字符串导致乱码。
 
 - [ ] **Step 4: 在真实 Windows 11 上验证**
 
