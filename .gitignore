@@ -1,0 +1,12 @@
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local install state（防止把测试痕迹提交进来）
+.env.detected
+*.log
+
+# Test scratch
+tests/scratch/
