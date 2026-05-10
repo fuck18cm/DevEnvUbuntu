@@ -1,0 +1,15 @@
+[Unit]
+Description=Clautel daemon (DevEnvUbuntu)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/bin/bash -lc 'exec clautel'
+Restart=always
+RestartSec=5s
+StandardOutput=append:%h/.local/state/clautel/clautel.log
+StandardError=append:%h/.local/state/clautel/clautel.log
+
+[Install]
+WantedBy=default.target

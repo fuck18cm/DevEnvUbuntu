@@ -1,0 +1,6 @@
+[Unit]
+Description=DevEnvUbuntu network liveness probe
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash -c 'ping -c1 -W3 1.1.1.1 >/dev/null || ping -c1 -W3 8.8.8.8 >/dev/null || echo "$(date -Iseconds) network unreachable" >> %h/.local/state/clautel/net.log; exit 0'

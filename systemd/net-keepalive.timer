@@ -1,0 +1,10 @@
+[Unit]
+Description=Run net-keepalive every 5 min
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+Unit=net-keepalive.service
+
+[Install]
+WantedBy=timers.target
