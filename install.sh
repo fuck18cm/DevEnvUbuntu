@@ -128,10 +128,10 @@ print_status_table() {
     printf "$fmt" "✗" "Python" "未装"
   fi
 
-  # claude-code / clautel (依赖 npm)
-  if command -v npm >/dev/null 2>&1; then
-    local npm_globals
-    npm_globals=$(npm ls -g --depth=0 2>/dev/null || true)
+  # claude-code / clautel (依赖 npm; 必须用 as_login_shell 才能拿到 nvm 注入的 npm)
+  local npm_globals
+  npm_globals=$(as_login_shell 'command -v npm >/dev/null 2>&1 && npm ls -g --depth=0 2>/dev/null' 2>/dev/null || true)
+  if [[ -n "$npm_globals" ]]; then
     if printf '%s' "$npm_globals" | grep -q '@anthropic-ai/claude-code@'; then
       local v
       v=$(printf '%s' "$npm_globals" | grep -oE '@anthropic-ai/claude-code@[^ ]+' | head -1 | sed 's/.*@//')
@@ -139,9 +139,9 @@ print_status_table() {
     else
       printf "$fmt" "✗" "claude-code" "未装"
     fi
-    if printf '%s' "$npm_globals" | grep -qE '(^| )clautel@'; then
+    if printf '%s' "$npm_globals" | grep -qE '(^|[^A-Za-z])clautel@'; then
       local v
-      v=$(printf '%s' "$npm_globals" | grep -oE '(^| )clautel@[^ ]+' | head -1 | sed 's/.* clautel@//')
+      v=$(printf '%s' "$npm_globals" | grep -oE '(^|[^A-Za-z])clautel@[^ ]+' | head -1 | sed 's/.*clautel@//')
       printf "$fmt" "✓" "clautel" "$v"
     else
       printf "$fmt" "✗" "clautel" "未装"
@@ -255,3 +255,10 @@ print_status_table
 echo
 
 log_info "全部完成。如果在 WSL 下使用,请到 Windows 端运行 windows\\run-as-admin.bat"
+echo
+echo "⚠️  当前终端是 install 之前打开的,PATH 还是旧的(node/claude/sdk 找不到)。"
+echo "    请执行下面任一种让新工具生效:"
+echo "      a) 关闭这个终端,开一个新的(推荐)"
+echo "      b) 在当前终端执行: exec bash -l"
+echo "      c) 或者: source ~/.bashrc"
+echo
