@@ -199,8 +199,7 @@ End If
   $action = New-ScheduledTaskAction -Execute $wscript `
     -Argument ('"{0}"' -f $vbsPath)
 
-  $triggerLogon = New-ScheduledTaskTrigger -AtLogOn `
-    -User "$env:USERDOMAIN\$env:USERNAME"
+  $triggerStartup = New-ScheduledTaskTrigger -AtStartup
 
   # 5 分钟一次心跳: 开机 2 分钟后第一次,然后每 5 分钟 (PowerShell 里 -Once -At + RepetitionInterval 是唯一支持周期触发的写法)
   $triggerHeartbeat = New-ScheduledTaskTrigger `
@@ -214,14 +213,29 @@ End If
     -MultipleInstances IgnoreNew
 
   $principal = New-ScheduledTaskPrincipal `
-    -UserId "$env:USERDOMAIN\$env:USERNAME" -RunLevel Highest
+    -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType S4U -RunLevel Highest
 
   Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
   Register-ScheduledTask -TaskName $taskName `
     -Action $action `
-    -Trigger @($triggerLogon, $triggerHeartbeat) `
+    -Trigger @($triggerStartup, $triggerHeartbeat) `
     -Settings $settings -Principal $principal | Out-Null
-  Write-Host "[OK] 已注册任务计划: $taskName (AtLogOn + 5min, MultipleInstances=IgnoreNew)"
+  Write-Host "[OK] 已注册任务计划: $taskName (AtStartup + 5min, S4U, MultipleInstances=IgnoreNew)"
+
+  # === 6b) 自检注册结果 (防止后续被人意外改回 AtLogOn 或丢掉 S4U) ============
+  $registered = Get-ScheduledTask -TaskName $taskName
+  $bootTrigger = $registered.Triggers | Where-Object {
+    $_.CimClass.CimClassName -eq 'MSFT_TaskBootTrigger'
+  }
+  if (-not $bootTrigger) {
+    Write-Error "[ASSERT] 任务注册成功了, 但没找到 AtStartup (MSFT_TaskBootTrigger). 检查 setup-keepalive.ps1 中 trigger 写法."
+    exit 1
+  }
+  if ($registered.Principal.LogonType -ne 'S4U') {
+    Write-Error "[ASSERT] 任务 principal LogonType = '$($registered.Principal.LogonType)', 期望 S4U. 检查 New-ScheduledTaskPrincipal 参数."
+    exit 1
+  }
+  Write-Host "[OK] 配置断言通过: AtStartup trigger + S4U principal"
 
   # === 7) 立即触发一次 + 写 WSL 标记 =======================================
   Start-ScheduledTask -TaskName $taskName
@@ -240,7 +254,7 @@ End If
   Write-Host ""
   Write-Host "=== 完成 ===" -ForegroundColor Green
   Write-Host "保活机制:"
-  Write-Host "  AtLogOn 任务 + 每 5 分钟 -> wscript $vbsPath"
+  Write-Host "  AtStartup (S4U, 无密码) + 每 5 分钟 -> wscript $vbsPath"
   Write-Host "  VBS 探活 clautel.service: active=记 OK / 否则 systemctl start"
   Write-Host "  日志: $logPath"
   Write-Host ""
