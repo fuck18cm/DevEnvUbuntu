@@ -13,13 +13,24 @@ else
   curl -fsSL https://get.sdkman.io | bash
 fi
 
-# 镜像
+# 镜像 + 关闭 healthcheck/selfupdate
+# bfsu 等国内镜像不一定返回 SDKMAN healthcheck 期望的 app/version 端点,
+# 启用 healthcheck 时 sdk install 会被误判为 "Internet unreachable" 直接拒绝。
 if [[ "${DEVENV_USE_MIRROR:-1}" == "1" ]]; then
   CONFIG="$SDKMAN_DIR/etc/config"
   if ! grep -q 'sdkman.bfsu.edu.cn' "$CONFIG" 2>/dev/null; then
     log_info "切换 SDKMAN candidates 到 bfsu 镜像"
     echo "SDKMAN_CANDIDATES_API=https://sdkman.bfsu.edu.cn/candidates" >> "$CONFIG"
   fi
+  # 把 healthcheck/selfupdate 的开关从默认的 true 改为 false(若已存在则替换,否则追加)
+  for key in sdkman_healthcheck_enable sdkman_selfupdate_feature sdkman_auto_selfupdate; do
+    if grep -qE "^${key}=" "$CONFIG" 2>/dev/null; then
+      sed -i "s/^${key}=.*/${key}=false/" "$CONFIG"
+    else
+      echo "${key}=false" >> "$CONFIG"
+    fi
+  done
+  log_info "已关闭 SDKMAN healthcheck/selfupdate(国内镜像下避免误报离线)"
 fi
 
 # 注入 ~/.bashrc（统一 marker 块）
