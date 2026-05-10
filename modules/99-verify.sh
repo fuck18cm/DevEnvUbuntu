@@ -52,9 +52,10 @@ fi
 
 if is_wsl; then
   if [[ -f "$HOME/.local/state/devenv/windows-keepalive-installed" ]]; then
-    row OK 'wsl-keepalive 任务' '已注册（标记文件存在）'
+    row OK 'wsl-keepalive 任务' '已注册(标记文件存在)'
   else
-    row FAIL 'wsl-keepalive 任务' '请到 Windows 端运行 windows\\run-as-admin.bat'
+    # Windows 端待办,不是 Linux 侧能修的,标 TODO 不计入 FAIL
+    printf '[%s]  %-22s %s\n' 'TODO' 'wsl-keepalive 任务' '请到 Windows 端双击 windows\run-as-admin.bat'
   fi
 fi
 
