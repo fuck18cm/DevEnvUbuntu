@@ -343,7 +343,7 @@ while [[ $# -gt 0 ]]; do
     --git-user) DEVENV_GIT_USER="$2"; shift 2 ;;
     --git-email) DEVENV_GIT_EMAIL="$2"; shift 2 ;;
     -h|--help)
-      sed -n '2,5p' "$0"; exit 0 ;;
+      sed -n '2,4p' "$0"; exit 0 ;;
     *) log_error "未知参数: $1"; exit 2 ;;
   esac
 done
@@ -366,8 +366,10 @@ should_run() {
     for m in "${ONLY[@]}"; do [[ "$name" == "$m" || "$name" == "$m"* ]] && return 0; done
     return 1
   fi
-  local m
-  for m in "${SKIP[@]:-}"; do [[ "$name" == "$m" || "$name" == "$m"* ]] && return 1; done
+  if [[ ${#SKIP[@]} -gt 0 ]]; then
+    local m
+    for m in "${SKIP[@]}"; do [[ "$name" == "$m" || "$name" == "$m"* ]] && return 1; done
+  fi
   if [[ "$DEVENV_SKIP_KEEPALIVE" == "1" && "$name" == "12-keepalive" ]]; then return 1; fi
   return 0
 }
