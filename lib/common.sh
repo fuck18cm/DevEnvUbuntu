@@ -34,12 +34,28 @@ has_systemd() {
   [[ -d /run/systemd/system ]]
 }
 
-# as_login_shell <command...>: 在登录+交互式 bash 中跑命令,让 nvm/sdk/pyenv 的
-# init 块在 ~/.bashrc 中真正生效。注意必须用 -i,因为 Ubuntu 默认 ~/.bashrc 顶部
-# 有 `case $- in *i*) ;; *) return;; esac`,非交互 shell 会在这里直接 return,
-# 导致写在 bashrc 末尾的 init 块被跳过。
+# as_login_shell <command...>: 在 SDKMAN / nvm / pyenv 都已加载的子 shell 中跑命令.
+#
+# 之前用 `bash -ilc`,但 -i (interactive) 在脚本子进程里会启用 job control,内层
+# bash 试图抢前台进程组 → 触发 SIGTTOU → 整个安装脚本被停在 [N]+ Stopped.
+# 第一波 SDKMAN/nvm 调用碰巧没踩坑(子命令本身耗时,bash 已完成 init 转移),但
+# 等到第二个 as_login_shell 调用就不一定那么走运了.
+#
+# 改用 `bash -c` 显式 source 已知的 init 脚本(绕开 ~/.bashrc 顶部的
+# `case $- in *i*) ;; *) return;; esac` 非交互短路).这样既不依赖 -i 也能拿到
+# 完整的 PATH/函数定义.
 as_login_shell() {
-  bash -ilc "$*"
+  DEVENV_AS_LOGIN_CMD="$*" bash -c '
+    [[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]] && . "$HOME/.sdkman/bin/sdkman-init.sh"
+    [[ -s "$HOME/.nvm/nvm.sh" ]] && . "$HOME/.nvm/nvm.sh"
+    [[ -s "$HOME/.nvm/bash_completion" ]] && . "$HOME/.nvm/bash_completion"
+    if [[ -d "$HOME/.pyenv/bin" ]]; then
+      export PYENV_ROOT="$HOME/.pyenv"
+      export PATH="$PYENV_ROOT/bin:$PATH"
+      eval "$(pyenv init - bash 2>/dev/null || true)"
+    fi
+    eval "$DEVENV_AS_LOGIN_CMD"
+  '
 }
 
 # append_once <file> <marker> <content>
