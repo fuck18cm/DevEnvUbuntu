@@ -46,8 +46,12 @@ try {
       exit 1
     }
     # 优先选 Ubuntu 系,否则取第一个
-    $ubuntuLike = $candidates | Where-Object { $_ -match '^Ubuntu' }
-    if ($ubuntuLike) { $Distro = $ubuntuLike[0] } else { $Distro = $candidates[0] }
+    # 注意: PS 管道单个匹配会拆箱成 string,直接 [0] 会拿首字符 (e.g. 'U' for 'Ubuntu-24.04')
+    # Select-Object -First 1 既保留 string 整体,又规范返回类型
+    $Distro = $candidates | Where-Object { $_ -match '^Ubuntu' } | Select-Object -First 1
+    if (-not $Distro) {
+      $Distro = $candidates | Select-Object -First 1
+    }
     Write-Host "[INFO] 检测到 distro 候选: $($candidates -join ', '); 使用: $Distro"
   } else {
     Write-Host "[INFO] 使用指定 distro: $Distro"
