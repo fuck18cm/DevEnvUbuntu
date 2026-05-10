@@ -15,32 +15,33 @@ fi
 
 CONFIG="$SDKMAN_DIR/etc/config"
 
-if [[ "${DEVENV_USE_MIRROR:-1}" == "1" ]]; then
-  # 走 bfsu 镜像 + 关 healthcheck/selfupdate(避免镜像不返回 app/version 端点时被误判离线)
+# 不论是否使用镜像,始终关闭 SDKMAN 的 startup healthcheck 与 selfupdate.
+# 原因: healthcheck 主动 ping API 探活,失败会让整个进程进入 offline 模式,导致
+# `sdk list java` 只显示已装版本(空列表). 这种探活在以下场景都会误报:
+#   - 国内镜像不返回 healthcheck 期望的 app/version 端点
+#   - WSL2 没继承 Windows 宿主代理时,api.sdkman.io 不可达
+# 关掉它后,真正的网络失败会在 sdk install 时直接以 curl 错误暴露,信息更直接.
+for key in sdkman_healthcheck_enable sdkman_selfupdate_feature sdkman_auto_selfupdate; do
+  if grep -qE "^${key}=" "$CONFIG" 2>/dev/null; then
+    sed -i "s/^${key}=.*/${key}=false/" "$CONFIG"
+  else
+    echo "${key}=false" >> "$CONFIG"
+  fi
+done
+log_info "已关闭 SDKMAN healthcheck/selfupdate(避免误报离线)"
+
+# Candidates API: --mirror 用 bfsu, 否则清掉并走上游 api.sdkman.io
+if [[ "${DEVENV_USE_MIRROR:-0}" == "1" ]]; then
   if ! grep -q 'sdkman.bfsu.edu.cn' "$CONFIG" 2>/dev/null; then
     log_info "切换 SDKMAN candidates 到 bfsu 镜像"
+    sed -i '/^SDKMAN_CANDIDATES_API=/d' "$CONFIG"
     echo "SDKMAN_CANDIDATES_API=https://sdkman.bfsu.edu.cn/candidates" >> "$CONFIG"
   fi
-  for key in sdkman_healthcheck_enable sdkman_selfupdate_feature sdkman_auto_selfupdate; do
-    if grep -qE "^${key}=" "$CONFIG" 2>/dev/null; then
-      sed -i "s/^${key}=.*/${key}=false/" "$CONFIG"
-    else
-      echo "${key}=false" >> "$CONFIG"
-    fi
-  done
-  log_info "已关闭 SDKMAN healthcheck/selfupdate(国内镜像下避免误报离线)"
 else
-  # --no-mirror: 主动移除 bfsu 配置,让 SDKMAN 走上游 api.sdkman.io
   if grep -q '^SDKMAN_CANDIDATES_API=' "$CONFIG" 2>/dev/null; then
     sed -i '/^SDKMAN_CANDIDATES_API=/d' "$CONFIG"
     log_info "已移除 SDKMAN candidates 镜像,改走上游 api.sdkman.io"
   fi
-  # healthcheck/selfupdate 上游可正常,恢复默认(true)
-  for key in sdkman_healthcheck_enable sdkman_selfupdate_feature sdkman_auto_selfupdate; do
-    if grep -qE "^${key}=false" "$CONFIG" 2>/dev/null; then
-      sed -i "s/^${key}=false/${key}=true/" "$CONFIG"
-    fi
-  done
 fi
 
 # 注入 ~/.bashrc(统一 marker 块)
