@@ -55,6 +55,8 @@ if is_wsl; then
     row OK 'wsl-keepalive 任务' '已注册(标记文件存在)'
 
     # 进一步: 读 Windows 侧 heartbeat.log 看最近一次状态
+    # 注: heartbeat 可能在 Windows 用户登录前就开始写日志 (AtStartup + S4U trigger),
+    #     所以最近一行 [OK] 时间戳可能早于 verify 时的登录时刻 - 这是预期行为.
     WIN_USER=$(cmd.exe /c 'echo %USERNAME%' 2>/dev/null | tr -d '\r\n ')
     WIN_LOG="/mnt/c/Users/${WIN_USER}/AppData/Local/DevEnvUbuntu/heartbeat.log"
     if [[ -f "$WIN_LOG" ]]; then
