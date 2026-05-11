@@ -7,7 +7,7 @@
 - **Python 3.12**（pyenv）
 - **Git**、**Maven 3.9.x**
 - **Claude Code CLI** + **clautel**（npm 全局）
-- WSL2 下"始终在线"四件套：Windows 开机自启 WSL、不空闲超时、clautel 崩溃自拉起、网络保活记录
+- WSL2 下"始终在线"四件套：Windows 开机自启 WSL、VM 持久持有（v3 VM Holder）、clautel 崩溃自拉起、持有日志记录
 
 > **默认走官方上游**（api.sdkman.io / nodejs.org / pypi.org / Maven Central / GitHub）。
 > 国内不能科学上网的用户加 `--mirror` 启用 USTC / bfsu / npmmirror / 清华 / 阿里云 / gitee 加速。
@@ -46,21 +46,21 @@ bash install.sh
 这一步会：
 
 - 写入 `%USERPROFILE%\.wslconfig`（防止 WSL 空闲超时关闭）
-- 在 `%LOCALAPPDATA%\DevEnvUbuntu\` 生成 `wsl-heartbeat.vbs`（按本机 distro/user 渲染）
-- 注册 Windows 任务计划 `DevEnvUbuntu-WSL-Keepalive`，**两个 trigger**：
-  - `AtStartup` —— Windows 启动时跑一次（principal 用 S4U logon type，不依赖你登录、不存密码，锁屏期间 clautel 就已经在跑）
-  - 每 5 分钟一次心跳 —— 跑 wscript 调用 VBS，VBS 探 clautel.service 状态
-- 心跳记录到 `%LOCALAPPDATA%\DevEnvUbuntu\heartbeat.log`（>1MB 自动轮转）
+- WSL 始终在线 (v3 VM Holder 模式)
+  - 任务计划 `DevEnvUbuntu-WSL-VMHolder` 开机即启动 (AtStartup + S4U, 不依赖登录、不存密码)
+  - VBS 持有一个隐藏的 `wsl.exe ... sleep infinity` 子进程,给 WSL VM 一个永久 attach 的客户端 -> VM 24/7 在线
+  - VBS 每 5 分钟探活一次 clautel.service 并把结果写到 `%LOCALAPPDATA%\DevEnvUbuntu\holder.log` (>1MB 自动轮转到 `.log.1`)
+  - 持有进程死了 VBS 自动重 spawn;VBS 自己崩了任务计划 30 秒重启 (RestartCount=999)
 
-### 心跳行为
+### 探活行为
 
 | 探到 | 动作 |
 |---|---|
-| `clautel.service active` | 写一行 `[OK]` 到日志，退出 |
-| `clautel.service activating` | 写 `[INFO]`，退出（systemd 重启窗口期，不打扰） |
-| 其他（inactive / failed / WSL 没起） | 写 `[WARN]` 详情，触发 `wsl ... systemctl --user start clautel.service`，再写一行 `[INFO] boot trigger fired` |
+| `clautel.service active` | 写一行 `[OK]` 到日志 |
+| `clautel.service activating` | 写 `[INFO]`（systemd 重启窗口期，不打扰） |
+| 其他（inactive / failed） | 写 `[WARN]` 详情，fire-and-forget `systemctl --user start clautel.service` |
 
-任务计划 `MultipleInstances=IgnoreNew` 保证两个 trigger 撞上时只跑一份；VBS 内 wscript 进程数检查作兜底。
+任务计划 `MultipleInstances=IgnoreNew` + VBS 内 wscript 进程数检查双层排他，保证全局只有一份 VBS 在跑。
 
 ## 验证
 
@@ -99,7 +99,7 @@ npm uninstall -g @anthropic-ai/claude-code clautel
 
 ```powershell
 # Windows 侧
-Unregister-ScheduledTask -TaskName 'DevEnvUbuntu-WSL-Keepalive' -Confirm:$false
+Unregister-ScheduledTask -TaskName 'DevEnvUbuntu-WSL-VMHolder' -Confirm:$false
 Remove-Item "$env:LOCALAPPDATA\DevEnvUbuntu" -Recurse -Force
 Remove-Item "$env:USERPROFILE\.wslconfig" -Force      # 如果只服务此项目
 ```
