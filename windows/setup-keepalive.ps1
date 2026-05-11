@@ -287,7 +287,7 @@ Loop
     -ExecutionTimeLimit ([TimeSpan]::Zero) -Hidden `
     -MultipleInstances IgnoreNew `
     -RestartCount 999 `
-    -RestartInterval (New-TimeSpan -Seconds 30)
+    -RestartInterval (New-TimeSpan -Minutes 1)
 
   $principal = New-ScheduledTaskPrincipal `
     -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType S4U -RunLevel Highest
@@ -297,7 +297,7 @@ Loop
     -Action $action `
     -Trigger @($triggerStartup) `
     -Settings $settings -Principal $principal | Out-Null
-  Write-Host "[OK] 已注册任务计划: $taskName (AtStartup, S4U, RestartOnFailure=999x30s)"
+  Write-Host "[OK] 已注册任务计划: $taskName (AtStartup, S4U, RestartOnFailure=999x60s)"
 
   # === 6b) 自检注册结果 (防止后续被人意外改回 AtLogOn 或丢掉 S4U) ============
   $registered = Get-ScheduledTask -TaskName $taskName
@@ -346,7 +346,7 @@ Loop
   Write-Host "  AtStartup (S4U, 无密码) -> wscript $vbsPath"
   Write-Host "  VBS 持有 wsl.exe sleep infinity (签名 $holderSig)"
   Write-Host "  VBS 每 5 分钟探活 clautel.service 并写 holder.log"
-  Write-Host "  外层兜底: 任务计划 RestartCount=999, Interval=30s"
+  Write-Host "  外层兜底: 任务计划 RestartCount=999, Interval=60s (Task Scheduler 最小允许值)"
   Write-Host "  日志: $logPath"
   Write-Host ""
   Write-Host "卸载: Unregister-ScheduledTask -TaskName $taskName -Confirm:`$false"
