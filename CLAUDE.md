@@ -100,7 +100,7 @@ JDK/Maven 解析逻辑:先精确匹配 `versions.env` 中的 pin,匹配不到就
      2. 探活 `systemctl --user is-active clautel.service`,active 写 [OK]、activating 写 [INFO]、其它写 [WARN] 并 fire-and-forget `systemctl --user start`
      3. 日志写到 `%LOCALAPPDATA%\DevEnvUbuntu\holder.log`(>1MB 滚到 `.log.1`)
    - 任务计划 `MultipleInstances=IgnoreNew` + VBS 内 wscript 进程数检查双层排他
-   - **外层兜底**: `RestartCount=999, RestartInterval=30s` — VBS 自身崩溃时任务计划 30s 后重启
+   - **外层兜底**: `RestartCount=999, RestartInterval=60s` (PT1M, Task Scheduler 最小允许值) — VBS 自身崩溃时任务计划 60s 后重启
    - 隐藏窗口靠 `wscript.exe` + 所有 wsl.exe 调用都用 `WshShell.Run cmd, 0, False/True`(`0`=vbHide)。**不要用 `WshShell.Exec`** — 它强制 SW_SHOWNORMAL 会闪窗,见 [keepalive-hide-probe-window 设计](docs/superpowers/specs/2026-05-10-keepalive-hide-probe-window-design.md)。
 
 心跳/持有日志 `%LOCALAPPDATA%\DevEnvUbuntu\holder.log`,>1MB 自动轮转到 `.log.1`。v2 时代的 `heartbeat.log` 保留在原位作历史归档,setup 不删它。

@@ -75,7 +75,7 @@ Trigger:           AtStartup (单一 trigger,没有 5min 心跳)
 Principal:         hbslo, S4U logon, RunLevel=Highest
 Action:            wscript.exe "%LOCALAPPDATA%\DevEnvUbuntu\vm-holder.vbs"
 MultipleInstances: IgnoreNew (任务计划层面的排他)
-RestartOnFailure:  Count=∞, Interval=30s (VBS 异常退出时由任务计划兜底重启)
+RestartOnFailure:  Count=999, Interval=60s (Task Scheduler 最小允许值是 1min)
 ```
 
 ### 3.2 运行时文件
@@ -168,7 +168,7 @@ Loop
 | 层 | 触发 | 动作 |
 |---|---|---|
 | 内层 (VBS 自身) | `IsHolderAlive() = False` (WMI 找不到含 HOLDER_SIG 的 wsl.exe) | `Run holdCmd, 0, False` 重新 spawn sleep infinity |
-| 外层 (任务计划) | wscript.exe 进程崩溃 | `RestartOnFailure Count=∞ Interval=30s` 重新拉起整个 VBS |
+| 外层 (任务计划) | wscript.exe 进程崩溃 | `RestartOnFailure Count=999 Interval=60s` (Task Scheduler 最小允许值 PT1M) 重新拉起整个 VBS |
 
 如果 WSL 整体故障(比如 LxssManager 服务挂了)导致 sleep infinity 持续 spawn 失败,VBS 不会无限快速 spawn——主循环固定 5 分钟节奏(`WScript.Sleep 300000` 在每轮尾部),内层重 spawn 跟着这个节奏走,最快也是每 5 分钟一次,不会 fork bomb。
 
