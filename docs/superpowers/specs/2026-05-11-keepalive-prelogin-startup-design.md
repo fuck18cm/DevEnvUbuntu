@@ -49,7 +49,7 @@ S4U 创建的 logon token 有这些性质：
 - ✅ 能调本地 COM 服务（vmcompute、LxssManager 都是本地）
 - ❌ 没有网络凭据（不能访问 `\\server\share`、不能 Kerberos 认证）
 
-我们的任务只做一件事：调 `wsl.exe -d Ubuntu -u uu --exec systemctl --user start clautel.service`。这条命令链上没有任何"以用户身份访问网络资源"的步骤，因此 S4U 不缺什么。
+我们的任务只做一件事：调 `wsl.exe -d <distro> -u <wsl-user> --exec systemctl --user start clautel.service`（`<distro>` / `<wsl-user>` 在 `setup-keepalive.ps1` 探测后烘焙进 VBS 的 `Const DISTRO` / `Const WSL_USER`）。这条命令链上没有任何"以用户身份访问网络资源"的步骤，因此 S4U 不缺什么。
 
 ### 2.2 已知风险与缓解
 
