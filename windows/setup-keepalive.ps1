@@ -65,25 +65,43 @@ try {
   }
   Write-Host "[INFO] 目标 distro=$Distro user=$WslUser"
 
-  # === 4) 清理 v1 残留 ======================================================
-  # 4a) 杀 v1 sleep-infinity 长跑进程
+  # === 4) 清理 v1 / v2 残留 =================================================
+  # 4a) 杀 v1 残留的 'exec sleep infinity' 长跑进程
+  #     注意: v3 自己也会跑一个 sleep infinity, 但命令行带 HOLDER_SIG (后面注册任务时 spawn).
+  #     这里只杀 v1 风格的、不带 v3 签名的旧实例.
+  $v3Sig = "DevEnvUbuntu-vm-holder-sleep-infinity"
   $existingProcs = Get-CimInstance Win32_Process -Filter "Name = 'wsl.exe'" -ErrorAction SilentlyContinue
   foreach ($ep in $existingProcs) {
-    if ($ep.CommandLine -and ($ep.CommandLine -match 'exec sleep infinity')) {
+    if ($ep.CommandLine -and ($ep.CommandLine -match 'exec sleep infinity') -and ($ep.CommandLine -notmatch [Regex]::Escape($v3Sig))) {
       Write-Host "[INFO] 终止 v1 残留保活进程 PID=$($ep.ProcessId)"
       Stop-Process -Id $ep.ProcessId -Force -ErrorAction SilentlyContinue
     }
   }
-  # 4b) 删 v1 旧 VBS
+
+  # 4b) 准备运行时目录
   $launcherDir = Join-Path $env:LOCALAPPDATA "DevEnvUbuntu"
   if (-not (Test-Path $launcherDir)) {
     New-Item -ItemType Directory -Path $launcherDir -Force | Out-Null
   }
-  $oldVbs = Join-Path $launcherDir "wsl-keepalive.vbs"
-  if (Test-Path $oldVbs) {
-    Remove-Item $oldVbs -Force
-    Write-Host "[INFO] 删除 v1 VBS: $oldVbs"
+
+  # 4c) 删 v1 / v2 旧 VBS
+  foreach ($oldVbsName in @("wsl-keepalive.vbs", "wsl-heartbeat.vbs")) {
+    $oldVbs = Join-Path $launcherDir $oldVbsName
+    if (Test-Path $oldVbs) {
+      Remove-Item $oldVbs -Force
+      Write-Host "[INFO] 删除旧 VBS: $oldVbs"
+    }
   }
+
+  # 4d) 卸载 v2 旧任务 (新任务名是 DevEnvUbuntu-WSL-VMHolder, 不会冲突, 但旧任务还会跑旧 VBS 路径)
+  foreach ($oldTaskName in @("DevEnvUbuntu-WSL-Keepalive")) {
+    if (Get-ScheduledTask -TaskName $oldTaskName -ErrorAction SilentlyContinue) {
+      Write-Host "[INFO] 卸载旧任务: $oldTaskName"
+      Unregister-ScheduledTask -TaskName $oldTaskName -Confirm:$false -ErrorAction SilentlyContinue
+    }
+  }
+
+  # 4e) heartbeat.log 保留 - 留作 v2 历史归档, 用户也可手动删 $launcherDir\heartbeat.log
 
   # === 5) 生成 vm-holder.vbs ==============================================
   # v3: 不再轮询心跳, 改用持续持有 wsl.exe sleep infinity 子进程模式.
