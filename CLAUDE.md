@@ -87,21 +87,25 @@ source "$HERE/modules/versions.env"   # 仅在需要版本号的模块
 
 JDK/Maven 解析逻辑:先精确匹配 `versions.env` 中的 pin,匹配不到就降级到该大版本下的最新 `-tem` / `3.x` 版本(`pick_latest_tem`)。candidates 完全空时把 `sdk list` 完整输出 dump 到 `~/.local/state/devenv/sdk-list-*-<ts>.txt` 让用户贴回。
 
-### "始终在线"架构 (v2 — 只在 WSL 下完整生效)
+### "始终在线"架构 (v3 — VM Holder 模式,只在 WSL 下完整生效)
+
 1. **`/etc/wsl.conf`** 启用 systemd(`12-keepalive.sh` 写入但需用户 `wsl --shutdown` 一次)。
-2. **`loginctl enable-linger`** — 让 systemd user manager 在你未登录时也跑,clautel 才能在没人 wsl.exe 连着的间隙也活着。
+2. **`loginctl enable-linger`** — 让 systemd user manager 在你未登录时也跑,clautel 才能在没人 wsl.exe 连着的间隙也活着(本身在 v3 里这条不再是必需 — 但保留作为防御深度)。
 3. **`clautel install-service`** 生成 `~/.config/systemd/user/clautel.service` 并 enable + start。这份 unit **由 clautel 自己维护**,我们仓库不再保留手写模板;它的 ExecStart 直接调 node + daemon.js,Environment=PATH 烘焙进去,Restart=always。
-4. **Windows 任务计划** `DevEnvUbuntu-WSL-Keepalive` (`setup-keepalive.ps1` 注册) — **一个任务,两个 trigger**:
-   - `AtStartup` Windows 启动时跑一次 (principal: S4U logon type, 不依赖用户登录、不存密码)
-   - 每 5 分钟一次心跳
-   - 两个 trigger 都跑同一个 `%LOCALAPPDATA%\DevEnvUbuntu\wsl-heartbeat.vbs`(运行时生成,distro/user 烘焙入 VBS 常量)
-   - VBS 探 `systemctl --user is-active clautel.service`,三态分流:`active` 写 `[OK]`、`activating` 写 `[INFO]`、其他 写 `[WARN]` 并触发 `wsl ... systemctl --user start clautel.service`
+4. **Windows 任务计划** `DevEnvUbuntu-WSL-VMHolder` (`setup-keepalive.ps1` 注册) — **单 trigger AtStartup,S4U 主体,RestartOnFailure 兜底**:
+   - 调用 `wscript.exe %LOCALAPPDATA%\DevEnvUbuntu\vm-holder.vbs`(运行时生成,distro/user/signature 烘焙入 VBS 常量)
+   - VBS 启动后 spawn 一个隐藏的 `wsl.exe -d <distro> -u <user> -e /bin/bash -c "exec /bin/sleep infinity # DevEnvUbuntu-vm-holder-sleep-infinity"`,这个 wsl.exe 长期 attach,VM 因此 24/7 在线
+   - VBS 进入 `Do While True` 主循环,每 5 分钟:
+     1. WMI 查 `Win32_Process` 看 wsl.exe CommandLine 是否还包含 HOLDER_SIG,不在则重 spawn(内层兜底)
+     2. 探活 `systemctl --user is-active clautel.service`,active 写 [OK]、activating 写 [INFO]、其它写 [WARN] 并 fire-and-forget `systemctl --user start`
+     3. 日志写到 `%LOCALAPPDATA%\DevEnvUbuntu\holder.log`(>1MB 滚到 `.log.1`)
    - 任务计划 `MultipleInstances=IgnoreNew` + VBS 内 wscript 进程数检查双层排他
-   - 隐藏窗口靠 `wscript.exe` 调 VBS,VBS 内 `WshShell.Run cmd, 0, False` (vbHide=0)
+   - **外层兜底**: `RestartCount=999, RestartInterval=30s` — VBS 自身崩溃时任务计划 30s 后重启
+   - 隐藏窗口靠 `wscript.exe` + 所有 wsl.exe 调用都用 `WshShell.Run cmd, 0, False/True`(`0`=vbHide)。**不要用 `WshShell.Exec`** — 它强制 SW_SHOWNORMAL 会闪窗,见 [keepalive-hide-probe-window 设计](docs/superpowers/specs/2026-05-10-keepalive-hide-probe-window-design.md)。
 
-心跳日志 `%LOCALAPPDATA%\DevEnvUbuntu\heartbeat.log`,>1MB 自动轮转到 `.log.1`。
+心跳/持有日志 `%LOCALAPPDATA%\DevEnvUbuntu\holder.log`,>1MB 自动轮转到 `.log.1`。v2 时代的 `heartbeat.log` 保留在原位作历史归档,setup 不删它。
 
-`12-keepalive.sh` 在没有 systemd 时直接 `exit 1`,不会退化执行。`99-verify.sh` 里 `wsl-keepalive 任务` 在 marker 文件不存在时标 `TODO` 而非 `FAIL`(Linux 侧没法修 Windows 端,不应阻塞 verify 退出码);marker 在时进一步从 `/mnt/c/Users/.../heartbeat.log` 读最近一行作为心跳健康度,`[WARN]` 行才计入 FAIL。
+`12-keepalive.sh` 在没有 systemd 时直接 `exit 1`,不会退化执行。`99-verify.sh` 里 `wsl-keepalive 任务` 在 marker 文件不存在时标 `TODO` 而非 `FAIL`(Linux 侧没法修 Windows 端,不应阻塞 verify 退出码);marker 在时进一步从 `/mnt/c/Users/.../holder.log` 读最近一行作为心跳健康度,`[WARN]` 行才计入 FAIL。如果用户从 v2 升级但还没重跑 `run-as-admin.bat`,verify 会看到 heartbeat.log 但没有 holder.log,标 WARN 提示升级。
 
 ### 版本号集中点
 所有版本写在 `modules/versions.env`,升级只改这一处。当前:`JDK8_VERSION=8.0.422-tem`、`JDK17_VERSION=17.0.13-tem`、`MAVEN_VERSION=3.9.9`、`NODE_LTS=20`、`PYTHON_VERSION=3.12.7`。
