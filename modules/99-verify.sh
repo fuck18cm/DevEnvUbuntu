@@ -54,12 +54,19 @@ if is_wsl; then
   if [[ -f "$HOME/.local/state/devenv/windows-keepalive-installed" ]]; then
     row OK 'wsl-keepalive 任务' '已注册(标记文件存在)'
 
-    # 进一步: 读 Windows 侧 heartbeat.log 看最近一次状态
-    # 注: heartbeat 可能在 Windows 用户登录前就开始写日志 (AtStartup + S4U trigger),
+    # 读 Windows 侧 holder.log 看最近一次状态.
+    # 注: VBS 在 Windows 用户登录前就开始写日志 (AtStartup + S4U trigger),
     #     所以最近一行 [OK] 时间戳可能早于 verify 时的登录时刻 - 这是预期行为.
     WIN_USER=$(cmd.exe /c 'echo %USERNAME%' 2>/dev/null | tr -d '\r\n ')
-    WIN_LOG="/mnt/c/Users/${WIN_USER}/AppData/Local/DevEnvUbuntu/heartbeat.log"
-    if [[ -f "$WIN_LOG" ]]; then
+    WIN_DIR="/mnt/c/Users/${WIN_USER}/AppData/Local/DevEnvUbuntu"
+    WIN_LOG="${WIN_DIR}/holder.log"
+    WIN_LOG_V2="${WIN_DIR}/heartbeat.log"
+
+    # 兼容性: 用户从 v2 升级但还没重跑 run-as-admin.bat
+    if [[ ! -f "$WIN_LOG" && -f "$WIN_LOG_V2" ]]; then
+      printf '[%s]  %-22s %s\n' 'WARN' 'wsl-keepalive 心跳' '检测到旧 v2 heartbeat.log,请在 Windows 上重跑 run-as-admin.bat 升级到 v3'
+      FAIL=$((FAIL+1))
+    elif [[ -f "$WIN_LOG" ]]; then
       last_line=$(tail -50 "$WIN_LOG" 2>/dev/null | grep -E '\[(OK|INFO|WARN)\]' | tail -1 || true)
       if [[ "$last_line" == *"[OK]"* ]]; then
         row OK 'wsl-keepalive 心跳' "${last_line:0:40}"
@@ -75,7 +82,6 @@ if is_wsl; then
       printf '[%s]  %-22s %s\n' 'TODO' 'wsl-keepalive 心跳' '日志文件未生成'
     fi
   else
-    # Windows 端待办,不是 Linux 侧能修的,标 TODO 不计入 FAIL
     printf '[%s]  %-22s %s\n' 'TODO' 'wsl-keepalive 任务' '请到 Windows 端双击 windows\run-as-admin.bat'
   fi
 fi
