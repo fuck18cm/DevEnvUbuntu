@@ -317,23 +317,36 @@ Loop
 
   # === 7) 立即触发一次 + 写 WSL 标记 =======================================
   Start-ScheduledTask -TaskName $taskName
-  Start-Sleep -Seconds 5
+  # v3 holder 内部启动序列: LogLine INFO started -> respawn spread spawn -> LogLine OK probe.
+  # 总耗时约 5-10 秒(WSL cold start 占大头). 等 10 秒以保证 3 行都落地.
+  Start-Sleep -Seconds 10
   & wsl.exe -d $Distro -u $WslUser -e bash -c "mkdir -p ~/.local/state/devenv && touch ~/.local/state/devenv/windows-keepalive-installed"
   Write-Host "[OK] WSL 端已写入标记文件"
 
-  # === 8) 自检 =============================================================
+  # === 8) 自检 holder.log ==================================================
   if (Test-Path $logPath) {
-    $lastLine = Get-Content $logPath -Tail 1 -ErrorAction SilentlyContinue
-    Write-Host "[OK] heartbeat.log 末行: $lastLine"
+    $lastLines = Get-Content $logPath -Tail 5 -ErrorAction SilentlyContinue
+    Write-Host "[OK] holder.log 末 5 行:"
+    foreach ($line in $lastLines) { Write-Host "      $line" }
+
+    $hasStarted  = $lastLines | Where-Object { $_ -match '\[INFO\] vm-holder started' }
+    $hasAttached = $lastLines | Where-Object { $_ -match '\[INFO\] vm holder attached' }
+    $hasProbe    = $lastLines | Where-Object { $_ -match '\[(OK|INFO)\] clautel\.service' }
+
+    if (-not $hasStarted)  { Write-Host "[WARN] 未看到 vm-holder started 行, 任务可能没起来" -ForegroundColor Yellow }
+    if (-not $hasAttached) { Write-Host "[WARN] 未看到 vm holder attached 行, 持有进程可能 spawn 失败" -ForegroundColor Yellow }
+    if (-not $hasProbe)    { Write-Host "[WARN] 未看到 clautel.service 探活行, 检查 12-keepalive.sh 是否跑过" -ForegroundColor Yellow }
   } else {
-    Write-Host "[WARN] heartbeat.log 还没生成,几分钟后查 $logPath" -ForegroundColor Yellow
+    Write-Host "[WARN] holder.log 还没生成, 10 秒太短 (Windows 启动期 WSL cold start 可能慢). 几分钟后查 $logPath" -ForegroundColor Yellow
   }
 
   Write-Host ""
   Write-Host "=== 完成 ===" -ForegroundColor Green
-  Write-Host "保活机制:"
-  Write-Host "  AtStartup (S4U, 无密码) + 每 5 分钟 -> wscript $vbsPath"
-  Write-Host "  VBS 探活 clautel.service: active=记 OK / 否则 systemctl start"
+  Write-Host "保活机制 (v3):"
+  Write-Host "  AtStartup (S4U, 无密码) -> wscript $vbsPath"
+  Write-Host "  VBS 持有 wsl.exe sleep infinity (签名 $holderSig)"
+  Write-Host "  VBS 每 5 分钟探活 clautel.service 并写 holder.log"
+  Write-Host "  外层兜底: 任务计划 RestartCount=999, Interval=30s"
   Write-Host "  日志: $logPath"
   Write-Host ""
   Write-Host "卸载: Unregister-ScheduledTask -TaskName $taskName -Confirm:`$false"
