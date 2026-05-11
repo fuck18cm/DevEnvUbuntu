@@ -253,8 +253,8 @@ Loop
   $vbs | Set-Content -Path $vbsPath -Encoding Ascii -Force
   Write-Host "[OK] 已生成: $vbsPath"
 
-  # === 6) 注册任务: 一个任务,两个 trigger ==================================
-  $taskName = "DevEnvUbuntu-WSL-Keepalive"
+  # === 6) 注册任务: 单 trigger, RestartOnFailure 外层兜底 ====================
+  $taskName = "DevEnvUbuntu-WSL-VMHolder"
   $wscript  = Join-Path $env:SystemRoot "System32\wscript.exe"
 
   $action = New-ScheduledTaskAction -Execute $wscript `
@@ -262,16 +262,14 @@ Loop
 
   $triggerStartup = New-ScheduledTaskTrigger -AtStartup
 
-  # 5 分钟一次心跳: 开机 2 分钟后第一次,然后每 5 分钟 (PowerShell 里 -Once -At + RepetitionInterval 是唯一支持周期触发的写法)
-  $triggerHeartbeat = New-ScheduledTaskTrigger `
-    -Once -At ((Get-Date).AddMinutes(2)) `
-    -RepetitionInterval (New-TimeSpan -Minutes 5)
-
+  # v3 没有 5min 心跳 trigger - VBS 自己永不退出
   $settings = New-ScheduledTaskSettingsSet `
     -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
     -StartWhenAvailable `
     -ExecutionTimeLimit ([TimeSpan]::Zero) -Hidden `
-    -MultipleInstances IgnoreNew
+    -MultipleInstances IgnoreNew `
+    -RestartCount 999 `
+    -RestartInterval (New-TimeSpan -Seconds 30)
 
   $principal = New-ScheduledTaskPrincipal `
     -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType S4U -RunLevel Highest
@@ -279,9 +277,9 @@ Loop
   Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
   Register-ScheduledTask -TaskName $taskName `
     -Action $action `
-    -Trigger @($triggerStartup, $triggerHeartbeat) `
+    -Trigger @($triggerStartup) `
     -Settings $settings -Principal $principal | Out-Null
-  Write-Host "[OK] 已注册任务计划: $taskName (AtStartup + 5min, S4U, MultipleInstances=IgnoreNew)"
+  Write-Host "[OK] 已注册任务计划: $taskName (AtStartup, S4U, RestartOnFailure=999x30s)"
 
   # === 6b) 自检注册结果 (防止后续被人意外改回 AtLogOn 或丢掉 S4U) ============
   $registered = Get-ScheduledTask -TaskName $taskName
@@ -294,7 +292,10 @@ Loop
   if ($registered.Principal.LogonType -ne 'S4U') {
     throw "[ASSERT] 任务 principal LogonType = '$($registered.Principal.LogonType)', 期望 S4U. 检查 New-ScheduledTaskPrincipal 参数."
   }
-  Write-Host "[OK] 配置断言通过: AtStartup trigger + S4U principal"
+  if ($registered.Settings.RestartCount -lt 1) {
+    throw "[ASSERT] 任务 RestartCount = '$($registered.Settings.RestartCount)', 期望 >=1. 检查 New-ScheduledTaskSettingsSet -RestartCount."
+  }
+  Write-Host "[OK] 配置断言通过: AtStartup trigger + S4U principal + RestartOnFailure"
 
   # === 7) 立即触发一次 + 写 WSL 标记 =======================================
   Start-ScheduledTask -TaskName $taskName
