@@ -50,7 +50,7 @@ bash install.sh
   - 任务计划 `DevEnvUbuntu-WSL-VMHolder` 开机即启动 (AtStartup + S4U, 不依赖登录、不存密码)
   - VBS 持有一个隐藏的 `wsl.exe ... sleep infinity` 子进程,给 WSL VM 一个永久 attach 的客户端 -> VM 24/7 在线
   - VBS 每 5 分钟探活一次 clautel.service 并把结果写到 `%LOCALAPPDATA%\DevEnvUbuntu\holder.log` (>1MB 自动轮转到 `.log.1`)
-  - 持有进程死了 VBS 自动重 spawn;VBS 自己崩了任务计划 30 秒重启 (RestartCount=999)
+  - 持有进程死了 VBS 自动重 spawn;VBS 自己崩了任务计划 60 秒重启 (RestartCount=999, Task Scheduler 最小允许值 1min)
 
 ### 探活行为
 

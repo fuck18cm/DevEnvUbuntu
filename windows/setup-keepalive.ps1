@@ -1,6 +1,8 @@
-﻿# DevEnvUbuntu v2: WSL keepalive setup
-# 注册任务计划: 一个任务,两个 trigger (AtLogOn + 每 5 分钟),
-# 跑同一个 wsl-heartbeat.vbs (智能心跳: active->记日志, 否则触发 boot)
+﻿# DevEnvUbuntu v3: WSL VM Holder setup
+# 注册任务计划 DevEnvUbuntu-WSL-VMHolder: 单 trigger AtStartup, S4U principal,
+# RestartCount=999 / Interval=60s. 任务跑 wscript.exe vm-holder.vbs (运行时生成),
+# VBS 持有 wsl.exe sleep infinity 子进程让 VM 24/7 在线, 每 5min 探活 clautel.service.
+# 见 docs/superpowers/specs/2026-05-11-vm-holder-design.md.
 [CmdletBinding()]
 param(
   [string]$Distro,        # 不指定则自动检测默认 distro

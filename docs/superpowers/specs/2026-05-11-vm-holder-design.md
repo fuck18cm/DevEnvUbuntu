@@ -302,6 +302,8 @@ git checkout HEAD~1 -- windows/setup-keepalive.ps1
 | GPO 禁用 S4U logon type | 低(企业域) | 文档说明降级路径(用任务计划 InteractiveToken trigger,但需要用户登录) |
 | holder.log 写满磁盘 | 极低 | >1MB 滚到 .log.1,理论上磁盘占用 ≤ 2MB |
 
+**Forensic note (踩过的坑)**: `MSFT_TaskSettings.RestartInterval` 有 documented 1-min 下限。`New-ScheduledTaskSettingsSet -RestartInterval (New-TimeSpan -Seconds 30)` PowerShell 不报错,但 `Register-ScheduledTask` 在序列化 task XML 时拒收 `<Interval>PT30S</Interval>`,返回 `HRESULT 0x80041318 - "The task XML contains a value which is incorrectly formatted or out of range"`。已用 60s (PT1M)。后人想"让重启更快"前请记得这条 — 改 30s 等会跑 setup 失败。
+
 ---
 
 ## 8. 度量目标
