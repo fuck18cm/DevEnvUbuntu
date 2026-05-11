@@ -168,3 +168,9 @@ Set-ScheduledTask -TaskName "DevEnvUbuntu-WSL-Keepalive" `
 - 2026-05-11：[@hbslover] 重启后发现 clautel 需登录才启动，要求改成开机即跑
 - 2026-05-11：评估"真 Windows 服务 (NSSM)" vs "任务计划 + AtStartup"，用户选后者（理由：避免新依赖、PS 改动最小）
 - 2026-05-11：评估"S4U 不存密码" vs "DPAPI 存密码"，用户选 S4U（理由：wsl.exe 是本地 IPC 不需要网络凭据，且改 Windows 密码不破任务）
+
+---
+
+## § 修订记录
+
+- **2026-05-11**: 本 spec 引入的 AtStartup + S4U 触发器模型被 [vm-holder 设计](2026-05-11-vm-holder-design.md) 继承(同样 AtStartup + S4U),但触发的目标 VBS 从轮询心跳 `wsl-heartbeat.vbs` 改为持续持有 `vm-holder.vbs`,任务名也从 `DevEnvUbuntu-WSL-Keepalive` 改为 `DevEnvUbuntu-WSL-VMHolder`。本 spec 关于 S4U 性质、风险、回滚的分析仍然适用,不需要修改。
